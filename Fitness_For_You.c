@@ -11,7 +11,7 @@ typedef struct account{
     int month;
     int year;
     char phoneNum[15];
-    char email[20];
+    char email[50];
     char city[50];
 }Account;
 
@@ -672,7 +672,6 @@ void insertFacility(Facility fac[], int *size) {
         return;
     }
 
-    // Add at end
     int i = (*size)++;
     printf("Facility Name: ");
     scanf(" %[^\n]", fac[i].name);
@@ -681,7 +680,6 @@ void insertFacility(Facility fac[], int *size) {
     printf("Input it's popularity (How many people have used it): ");
     scanf(" %d", &fac[i].popularity);
 
-    // Heapify up
     while (i != 0 && fac[(i - 1) / 2].popularity < fac[i].popularity) {
         swap(&fac[i], &fac[(i - 1) / 2]);
         i = (i - 1) / 2;
@@ -733,10 +731,8 @@ void deleteFacility(Facility fac[], int *size) {
 
     printf("Deleting facility: %s\n", fac[index].name);
 
-    // Replace with the last element
     fac[index] = fac[--(*size)];
 
-    // Heapify down from index
     int i = index;
     while (1) {
         int left = 2 * i + 1;
@@ -756,7 +752,6 @@ void deleteFacility(Facility fac[], int *size) {
         }
     }
 
-    // Heapify up (just in case new item was larger than its parent)
     while (i != 0 && fac[(i - 1) / 2].popularity < fac[i].popularity) {
         swap(&fac[i], &fac[(i - 1) / 2]);
         i = (i - 1) / 2;
@@ -1033,9 +1028,9 @@ void searchByName(Plan plans[], int data) {
             printf("==============================\n");
             printf("%s\n", plans[mid].name);
             printf("------------------------------\n");
-            printf("Difficulty: %s", plans[mid].difficulty);
-            printf("Popularity: %d", plans[mid].popularity);
-            printf("Duration: %d Weeks", plans[mid].duration);
+            printf("Difficulty: %s\n", plans[mid].difficulty);
+            printf("Popularity: %d\n", plans[mid].popularity);
+            printf("Duration: %d Weeks\n", plans[mid].duration);
             printf("==============================\n\n");
             found = 1;
             break;
@@ -1085,9 +1080,9 @@ void searchByDiff(Plan plans[], int data) {
             printf("==============================\n");
             printf("%s\n", plans[i].name);
             printf("------------------------------\n");
-            printf("Difficulty: %s", plans[i].difficulty);
-            printf("Popularity: %d", plans[i].popularity);
-            printf("Duration: %d Weeks", plans[i].duration);
+            printf("Difficulty: %s\n", plans[i].difficulty);
+            printf("Popularity: %d\n", plans[i].popularity);
+            printf("Duration: %d Weeks\n", plans[i].duration);
             printf("==============================\n\n");
         } 
     }
