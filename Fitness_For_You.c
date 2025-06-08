@@ -30,6 +30,7 @@ typedef struct Class {
     char name[50];
     char day[10];
     int startHour;
+    int key;
     char instructor[50];
 
     struct Class *left, *right;
@@ -305,6 +306,7 @@ void AccountSet(int *log, Account acc[], int data, char user[]){
         switch (choice) {
         case 1:
             (*log) = 0;
+            
             return;
 
         case 2:
@@ -326,6 +328,17 @@ void AccountSet(int *log, Account acc[], int data, char user[]){
 }
 
 // Classes related functions (add class, show classes, ect). This uses BST logic
+
+int dayToNumber(char *day) {
+    if (strcmp(day, "Monday") == 0) return 1;
+    if (strcmp(day, "Tuesday") == 0) return 2;
+    if (strcmp(day, "Wednesday") == 0) return 3;
+    if (strcmp(day, "Thursday") == 0) return 4;
+    if (strcmp(day, "Friday") == 0) return 5;
+    if (strcmp(day, "Saturday") == 0) return 6;
+    if (strcmp(day, "Sunday") == 0) return 7;
+    return 0;
+}
 
 void printScheduleEachDay(Class *root, char *day) {
     if (root == NULL) return;
@@ -354,7 +367,7 @@ Class* insertClass(Class *root, Class *newClass) {
         return node;
     }
 
-    if (newClass->startHour < root->startHour) {
+    if (newClass->key < root->key) {
         root->left = insertClass(root->left, newClass);
     } else {
         root->right = insertClass(root->right, newClass);
@@ -372,22 +385,26 @@ void freeClassTree(Class *root) {
     free(root);
 }
 
-Class* searchClassByTime(Class *root, int time) {
+Class* searchClassByKey(Class *root, int key) {
     if (root == NULL) return NULL;
 
-    if (time == root->startHour)
+    if (key == root->key)
         return root;
-    else if (time < root->startHour)
-        return searchClassByTime(root->left, time);
+    else if (key < root->key)
+        return searchClassByKey(root->left, key);
     else
-        return searchClassByTime(root->right, time);
+        return searchClassByKey(root->right, key);
 }
 
 void searchClass(Class *root){
-    int time;
-    printf("Enter start hour to search: ");
-    scanf("%d", &time);
-    Class *found = searchClassByTime(root, time);
+    int hour, day;
+    printf("Enter start hour (0-23): ");
+    scanf("%d", &hour);
+    printf("Enter day (1 = Monday, ..., 7 = Sunday): ");
+    scanf("%d", &day);
+
+    int key = hour * 100 + day;
+    Class *found = searchClassByKey(root, key);
     if (found) {
         printf("Found class: %s on %s with %s\n", found->name, found->day, found->instructor);
     } else {
@@ -473,7 +490,7 @@ Class *addClass(Class *root){
     Class *newClass = (Class *)malloc(sizeof(Class));
     printf("Class Name: ");
     scanf(" %[^\n]", newClass->name);
-    int b = 1;
+    int b = 1, day;
     while(b){
         printf("Day:\n");
         printf("1. Monday\n");
@@ -483,7 +500,6 @@ Class *addClass(Class *root){
         printf("5. Friday\n");
         printf("6. Saturday\n");
         printf("7. Sunday\n");
-        int day;
         scanf(" %d", &day);
         switch(day){
             case 1:
@@ -533,6 +549,8 @@ Class *addClass(Class *root){
     printf("Instructor: ");
     scanf(" %[^\n]", newClass->instructor);
 
+    newClass->key = newClass->startHour * 100 + day;
+
     root = insertClass(root, newClass);
     free(newClass);
     printf("Class Succesfully Addedd!\n");
@@ -546,6 +564,9 @@ void classes(int mod){
     if (fp != NULL) {
         Class *temp = (Class *)malloc(sizeof(Class));
         while (fscanf(fp, "%[^#]#%[^#]#%d#%[^\n]\n", temp->name, temp->day, &temp->startHour, temp->instructor) != EOF) {
+            int dayNumber = dayToNumber(temp->day);
+            temp->key = temp->startHour * 100 + dayNumber;
+            temp->left = temp->right = NULL;
             root = insertClass(root, temp);
         }
         fclose(fp);
@@ -640,7 +661,7 @@ void displayFac(Facility fac[], int size) {
 }
 
 void swap(Facility *a, Facility *b) {
-    struct Facility temp = *a;
+    Facility temp = *a;
     *a = *b;
     *b = temp;
 }
@@ -693,11 +714,6 @@ void searchFacility(Facility fac[], int data){
 }
 
 void deleteFacility(Facility fac[], int *size) {
-    if (*size == 0) {
-        printf("Heap is empty!\n");
-        return;
-    }
-
     char target[50];
     printf("Enter the facility name to delete: ");
     scanf(" %[^\n]", target);
@@ -771,7 +787,6 @@ void facilities(int mod){
     FILE *fp = fopen("facilities.txt", "r");
 
     if (fp != NULL) {
-        Facility *temp = (Facility *)malloc(sizeof(Facility));
         while (fscanf(fp, "%[^#]#%[^#]#%d\n", facility[jumlahFasilitas].name, facility[jumlahFasilitas].description, &facility[jumlahFasilitas].popularity) != EOF) {
             jumlahFasilitas++;
         }
@@ -841,19 +856,416 @@ void facilities(int mod){
     
 }
 
-// Functions about Workout Plans
+// Functions about Workout Plans (Using 2 Sorting algorithms BubbleSort and QuickSort ascending + descending) + Binary Search for the search feature
 
-void WorkoutPlans(){
+void displayPlans(Plan plans[], int data) {
+    for (int i = 0; i < data; i++){
+        printf("==============================\n");
+        printf("%s\n", plans[i].name);
+        printf("------------------------------\n");
+        printf("Difficulty: %s\n", plans[i].difficulty);
+        printf("Popularity: %d\n", plans[i].popularity);
+        printf("Duration: %d Weeks\n", plans[i].duration);
+        printf("==============================\n\n");
+    }
+}
+
+void swapPlans(Plan *A, Plan *B) {
+    Plan temp = *A;
+    *A = *B;
+    *B = temp;
+}
+
+void SortPopularDescending(Plan plans[], int data) {
+    int i, j;
+    for (i = 0; i < data - 1; i++) {
+        for (j = 0; j < data - i - 1; j++) {
+            if (plans[j].popularity < plans[j + 1].popularity) {
+                swapPlans(&plans[j], &plans[j + 1]);
+            }
+        }
+    }
+}
+
+void SortPopularAscending(Plan plans[], int data) {
+    int i, j;
+    for (i = 0; i < data - 1; i++) {
+        for (j = 0; j < data - i - 1; j++) {
+            if (plans[j].popularity > plans[j + 1].popularity) {
+                swapPlans(&plans[j], &plans[j + 1]);
+            }
+        }
+    }
+}
+
+void sortPopularity(Plan plans[], int data) {
+    int choice;
+    printf("\n============= Sort By Popularity ===============\n");
+    printf("1. From Most to Least popular\n");
+    printf("2. From Least to Most popular\n");
+    printf("Choice: ");
+    scanf(" %d", &choice);
+    switch(choice){
+        case 1:
+            SortPopularDescending(plans, data);
+            break;
+
+        case 2:
+            SortPopularAscending(plans, data);
+            break;
+
+        default:
+            printf("Invalid input, please try again...\n\n");
+    }
+}
+
+int partitionDec(Plan *plans, int l, int r) {
+    int pivot = plans[r].duration;
+    int i = l - 1;
+    for (int j = l; j <= r - 1; j++) {
+        if (plans[j].duration >= pivot) {
+            i++;
+            swapPlans(&plans[i], &plans[j]);
+        }
+    }
+    swapPlans(&plans[i + 1], &plans[r]);
+    return (i + 1);
+}
+
+void quickSortDec(Plan *plans, int l, int r) {
+    if (l < r) {
+        int pi = partitionDec(plans, l, r);
+        quickSortDec(plans, l, pi - 1);
+        quickSortDec(plans, pi + 1, r);
+    }
+}
+
+int partitionAsc(Plan *plans, int l, int r) {
+    int pivot = plans[r].duration;
+    int i = l - 1;
+    for (int j = l; j <= r - 1; j++) {
+        if (plans[j].duration <= pivot) {
+            i++;
+            swapPlans(&plans[i], &plans[j]);
+        }
+    }
+    swapPlans(&plans[i + 1], &plans[r]);
+    return (i + 1);
+}
+
+void quickSortAsc(Plan *plans, int l, int r) {
+    if (l < r) {
+        int pi = partitionAsc(plans, l, r);
+        quickSortAsc(plans, l, pi - 1);
+        quickSortAsc(plans, pi + 1, r);
+    }
+}
+
+void SortDurationDescending(Plan plans[], int data) {
+    quickSortDec(plans, 0, data - 1);
+}
+
+void SortDurationAscending(Plan plans[], int data) {
+    quickSortAsc(plans, 0, data - 1);
+}
+
+void sortDuration(Plan plans[], int data) {
+    int choice;
+    printf("\n============= Sort By Duration ===============\n");
+    printf("1. From Longest to Shortest Duration\n");
+    printf("2. From Shortest to Longest Duration\n");
+    printf("Choice: ");
+    scanf(" %d", &choice);
+    switch(choice){
+        case 1:
+            SortDurationDescending(plans, data);
+            break;
+
+        case 2:
+            SortDurationAscending(plans, data);
+            break;
+
+        default:
+            printf("Invalid input, please try again...\n\n");
+    }
+}
+
+void sortPlans(Plan plans[], int data) {
+    int a = 1, choice;
+    while (a){
+        printf("\n============= Sort Workout Plans ===============\n");
+        printf("1. Sort by popularity\n");
+        printf("2. Sort by duration\n");
+        printf("3. Exit\n");
+        printf("Choice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1:
+                sortPopularity(plans, data);
+                break;
+            
+            case 2:
+                sortDuration(plans, data);
+                break;
+
+            case 3:
+                printf("Exiting Sorting Plans...\n");
+                return;
+
+            default:
+                printf("Invalid input, please try again...\n\n");
+        }
+    }
+}
+
+void searchByName(Plan plans[], int data) {
+    char search[50];
+    int found = 0;
+    printf("Input the Plan you want to find: ");
+    scanf(" %[^\n]", search);
+
+    int mid, low, high;
+    low = 0;
+    high = data - 1;
+    while (low <= high){
+        mid = (low + high) / 2;
+        if (strcmp(search, plans[mid].name) == 0) {
+            printf("==============================\n");
+            printf("%s\n", plans[mid].name);
+            printf("------------------------------\n");
+            printf("Difficulty: %s", plans[mid].difficulty);
+            printf("Popularity: %d", plans[mid].popularity);
+            printf("Duration: %d Weeks", plans[mid].duration);
+            printf("==============================\n\n");
+            found = 1;
+            break;
+        }
+        if (strcmp(search, plans[mid].name) < 0) {
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    if (found == 0){
+        printf("Plan Not Found!\n");
+    }
+}
+
+void searchByDiff(Plan plans[], int data) {
+    char search[50];
+    int choice;
+    printf("Which Difficulty:\n");
+    printf("1. Beginner\n");
+    printf("2. Intermediate\n");
+    printf("3. Advanced\n");
+    scanf(" %d", &choice);
+    switch (choice){
+        case 1: {
+            strcpy(search, "Beginner");
+            break;
+        }
+        
+        case 2: {
+            strcpy(search, "Intermediate");
+            break;
+        }
+
+        case 3: {
+            strcpy(search, "Advanced");
+            break;
+        }
+
+        default:
+            printf("Invalid input, please try again...\n\n");
+    }
+
+    for (int i = 0; i < data; i++){
+        if (strcmp(plans[i].difficulty, search) == 0){
+            printf("==============================\n");
+            printf("%s\n", plans[i].name);
+            printf("------------------------------\n");
+            printf("Difficulty: %s", plans[i].difficulty);
+            printf("Popularity: %d", plans[i].popularity);
+            printf("Duration: %d Weeks", plans[i].duration);
+            printf("==============================\n\n");
+        } 
+    }
+
+}
+
+void sortPlansByName(Plan plans[], int data) {
+    int i, j;
+    for (i = 0; i < data - 1; i++) {
+        for (j = 0; j < data - i - 1; j++) {
+            if (strcmp(plans[j].name, plans[j + 1].name) > 0) {
+                swapPlans(&plans[j], &plans[j + 1]);
+            }
+        }
+    }
+}
+
+void searchPlans(Plan plans[], int data) {
+    int a = 1, choice;
+    while (a){
+        printf("\n============= Search Workout Plans ===============\n");
+        printf("1. Search by Name\n");
+        printf("2. Search by Difficulty\n");
+        printf("3. Exit\n");
+        printf("Choice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1:
+                sortPlansByName(plans, data);
+                searchByName(plans, data);
+                break;
+            
+            case 2:
+                searchByDiff(plans, data);
+                break;
+
+            case 3:
+                printf("Exiting Sorting Plans...\n");
+                return;
+
+            default:
+                printf("Invalid input, please try again...\n\n");
+        }
+    }
+}
+
+void addPlans(Plan plans[], int *data) {
+    int i = (*data)++;
+    int choice;
+    printf("Workout Plan Name: ");
+    scanf(" %[^\n]", plans[i].name);
+    printf("Difficulty:\n");
+    scanf(" %d", &choice);
+    switch (choice){
+        case 1: {
+            strcpy(plans[i].difficulty, "Beginner");
+            break;
+        }
+        
+        case 2: {
+            strcpy(plans[i].difficulty, "Intermediate");
+            break;
+        }
+
+        case 3: {
+            strcpy(plans[i].difficulty, "Advanced");
+            break;
+        }
+
+        default:
+            printf("Invalid input, please try again...\n\n");
+    }
+    printf("Popularity: ");
+    scanf(" %d", &plans[i].popularity);
+    printf("Duration (in weeks): ");
+    scanf(" %d", &plans[i].duration);
+
+    printf("Succesfully added a New Workout Plan!\n\n");
+}
+
+void deletePlan(Plan plans[], int *data) {
+    printf("Current Plans:\n");
+    for (int i = 0; i < *data; i++) {
+        printf("%d. %s\n", i + 1, plans[i].name);
+    }
+
+    int deleteIndex;
+    do{
+        printf("Enter the number of the plan to delete: ");
+        scanf("%d", &deleteIndex);
+        deleteIndex--;
+    }while (deleteIndex < 0 || deleteIndex >= *data);
+
+    for (int i = deleteIndex; i < *data - 1; i++) {
+        plans[i] = plans[i + 1];
+    }
+
+    (*data)--;
+
+    printf("Plan deleted successfully!\n\n");
+}
+
+void WorkoutPlans(int mod){
     Plan plans[100];
-    int jumlahFasilitas = 0;
+    int PlansCount = 0;
     FILE *fp = fopen("workoutPlans.txt", "r");
 
     if (fp != NULL) {
-        Facility *temp = (Facility *)malloc(sizeof(Facility));
-        while (fscanf(fp, "%[^#]#%[^#]#%d\n", facility[jumlahFasilitas].name, facility[jumlahFasilitas].description, &facility[jumlahFasilitas].popularity) != EOF) {
-            jumlahFasilitas++;
+        while (fscanf(fp, "%[^#]#%d#%d#%[^\n]\n", plans[PlansCount].name, &plans[PlansCount].popularity, &plans[PlansCount].duration, plans[PlansCount].difficulty) != EOF) {
+            PlansCount++;
         }
         fclose(fp);
+    }
+
+    int a = 1, choice;
+    while (a){
+        printf("\n============= Workout Plans ===============\n");
+        printf("1. View Plans\n");
+        printf("2. Sort Plans\n");
+        printf("3. Search for Plans\n");
+        printf("4. Exit\n");
+        if (mod == 1){
+            printf("5. Add New Plans\n");
+            printf("6. Delete Existing Plans\n");
+        }
+        printf("Choice: ");
+        scanf(" %d", &choice);
+        if (mod == 0){
+            switch (choice) {
+                case 1:
+                    displayPlans(plans, PlansCount);
+                    break;
+                
+                case 2:
+                    sortPlans(plans, PlansCount);
+                    break;
+
+                case 3:
+                    searchPlans(plans, PlansCount);
+                    break;
+
+                case 4:
+                    printf("Exiting Facility...\n");
+                    return;
+
+                default:
+                    printf("Invalid input, please try again...\n\n");
+            }
+        } else {
+            switch (choice) {
+                case 1:
+                    displayPlans(plans, PlansCount);
+                    break;
+                
+                case 2:
+                    sortPlans(plans, PlansCount);
+                    break;
+
+                case 3:
+                    searchPlans(plans, PlansCount);
+                    break;
+
+                case 4:
+                    printf("Exiting Facility...\n");
+                    return;
+
+                case 5:
+                    addPlans(plans, &PlansCount);
+                    break;
+
+                case 6:
+                    deletePlan(plans, &PlansCount);
+                    break;
+
+                default:
+                    printf("Invalid input, please try again...\n\n");
+            }
+        }
     }
 }
 
@@ -933,9 +1345,8 @@ int main() {
                 printf("1. Account Setting\n");
                 printf("2. Facility\n");
                 printf("3. Class Schedule\n");
-                printf("4. Account Details\n");
-                printf("5. Edit Account Details\n");
-                printf("6. Exit\n");
+                printf("4. Workout Plans\n");
+                printf("5. Exit\n");
                 printf("Choice: ");
                 scanf(" %d", &pick);
 
@@ -950,6 +1361,15 @@ int main() {
 
                     case 3:
                         classes(Mod);
+                        break;
+
+                    case 4:
+                        WorkoutPlans(Mod);
+                        break;
+
+                    case 5:
+                        printf("Program Exiting...");
+                        z = 0;
                         break;
 
                     default:
@@ -969,15 +1389,15 @@ int main() {
                 printf("1. LogOut\n");
                 printf("2. Edit Facility\n");
                 printf("3. Edit Classes and Schedules\n");
-                printf("4. Account Details\n");
-                printf("5. Edit Account Details\n");
-                printf("6. Exit\n");
+                printf("4. Edit Workout Plans\n");
+                printf("5. Exit\n");
                 printf("Choice: ");
                 scanf(" %d", &pick);
 
                 switch (pick){
                     case 1:
                         isLoggedIn = 0;
+                        Mod = 0;
                         break;
 
                     case 2:
@@ -986,6 +1406,15 @@ int main() {
 
                     case 3:
                         classes(Mod);
+                        break;
+                    
+                    case 4:
+                        WorkoutPlans(Mod);
+                        break;
+
+                    case 5:
+                        printf("Program Exiting...");
+                        z = 0;
                         break;
 
                     default:
