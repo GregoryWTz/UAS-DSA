@@ -419,21 +419,15 @@ Class *findMin(Class *node) {
     return node;
 }
 
-Class *deleteClass(Class *root, char *name, char *day, int startHour) {
-    if (root == NULL) {
-        return NULL;
-    }
+Class *deleteClass(Class *root, char *name, char *day, int key) {
+    if (root == NULL) return NULL;
 
-    // Navigate the BST using startHour
-    if (startHour < root->startHour) {
-        root->left = deleteClass(root->left, name, day, startHour);
-    } else if (startHour > root->startHour) {
-        root->right = deleteClass(root->right, name, day, startHour);
+    if (key < root->key) {
+        root->left = deleteClass(root->left, name, day, key);
+    } else if (key > root->key) {
+        root->right = deleteClass(root->right, name, day, key);
     } else {
-        // Found a node with matching startHour — now check name and day
         if (strcmp(root->name, name) == 0 && strcmp(root->day, day) == 0) {
-            // Node to delete found
-            // Case 1: Node has no child or only one child
             if (root->left == NULL) {
                 Class* temp = root->right;
                 free(root);
@@ -444,43 +438,52 @@ Class *deleteClass(Class *root, char *name, char *day, int startHour) {
                 return temp;
             }
 
-            // Case 2: Node has two children
-            // Find inorder successor (smallest in right subtree)
             Class* temp = findMin(root->right);
-
-            // Copy successor’s data to this node
             strcpy(root->name, temp->name);
             strcpy(root->day, temp->day);
             root->startHour = temp->startHour;
+            root->key = temp->key;
             strcpy(root->instructor, temp->instructor);
-
-            // Delete the inorder successor
-            root->right = deleteClass(root->right, temp->name, temp->day, temp->startHour);
+            root->right = deleteClass(root->right, temp->name, temp->day, temp->key);
         } else {
-            // Even though startHour matches, name/day didn't match — continue search
-            // Since BST is based on startHour, to ensure we search all matching times
-            // we must search both left and right subtrees.
-            root->left = deleteClass(root->left, name, day, startHour);
-            root->right = deleteClass(root->right, name, day, startHour);
+            root->left = deleteClass(root->left, name, day, key);
+            root->right = deleteClass(root->right, name, day, key);
         }
     }
 
     return root;
 }
 
+void writeClassToFile(FILE *file, Class *root) {
+    if (root == NULL) return;
+
+    writeClassToFile(file, root->left);
+
+    fprintf(file, "%s#%s#%d#%s\n", root->name, root->day, root->startHour, root->instructor);
+
+    writeClassToFile(file, root->right);
+}
+
 Class *deleteAClass(Class *root){
     char name[50];
-    char day[10];
-    int startHour;
+    char day[15];
+    int startHour, dayNumber, key;
 
     printf("Enter Class name: ");
     scanf(" %[^\n]", name);
-    printf("Enter the Day of the class: ");
+    printf("Enter the Day of the class (e.g. Monday): ");
     scanf(" %[^\n]", day);
-    printf("Enter The Hour of the class: ");
+    printf("Enter The Hour of the class (0–23): ");
     scanf(" %d", &startHour);
 
-    root = deleteClass(root, name, day, startHour);
+    dayNumber = dayToNumber(day);
+    key = startHour * 100 + dayNumber;
+
+    root = deleteClass(root, name, day, key);
+
+    FILE *file = fopen("classes.txt", "w");
+    writeClassToFile(file, root);
+    fclose(file);
 
     printf("Class Succesfully Deleted!\n");
     return root;
@@ -490,68 +493,82 @@ Class *addClass(Class *root){
     Class *newClass = (Class *)malloc(sizeof(Class));
     printf("Class Name: ");
     scanf(" %[^\n]", newClass->name);
-    int b = 1, day;
-    while(b){
-        printf("Day:\n");
-        printf("1. Monday\n");
-        printf("2. Tuesday\n");
-        printf("3. Wednesday\n");
-        printf("4. Thursday\n");
-        printf("5. Friday\n");
-        printf("6. Saturday\n");
-        printf("7. Sunday\n");
-        scanf(" %d", &day);
-        switch(day){
-            case 1:
-                strcpy(newClass->day, "Monday");
-                b = 0;
-                break;
+    do {
+        int b = 1, day;
+        while(b){
+            printf("Day:\n");
+            printf("1. Monday\n");
+            printf("2. Tuesday\n");
+            printf("3. Wednesday\n");
+            printf("4. Thursday\n");
+            printf("5. Friday\n");
+            printf("6. Saturday\n");
+            printf("7. Sunday\n");
+            scanf(" %d", &day);
+            switch(day){
+                case 1:
+                    strcpy(newClass->day, "Monday");
+                    b = 0;
+                    break;
 
-            case 2:
-                strcpy(newClass->day, "Tuesday");
-                b = 0;
-                break;
-            
-            case 3:
-                strcpy(newClass->day, "Wednesday");
-                b = 0;
-                break;
+                case 2:
+                    strcpy(newClass->day, "Tuesday");
+                    b = 0;
+                    break;
+                
+                case 3:
+                    strcpy(newClass->day, "Wednesday");
+                    b = 0;
+                    break;
 
-            case 4:
-                strcpy(newClass->day, "Thursday");
-                b = 0;
-                break;
+                case 4:
+                    strcpy(newClass->day, "Thursday");
+                    b = 0;
+                    break;
 
-            case 5:
-                strcpy(newClass->day, "Friday");
-                b = 0;
-                break;
+                case 5:
+                    strcpy(newClass->day, "Friday");
+                    b = 0;
+                    break;
 
-            case 6:
-                strcpy(newClass->day, "Saturday");
-                b = 0;
-                break;
+                case 6:
+                    strcpy(newClass->day, "Saturday");
+                    b = 0;
+                    break;
 
-            case 7:
-                strcpy(newClass->day, "Sunday");
-                b = 0;
-                break;
+                case 7:
+                    strcpy(newClass->day, "Sunday");
+                    b = 0;
+                    break;
 
-            default:
-                printf("Enter a valid input!");
+                default:
+                    printf("Enter a valid input!");
+            }
         }
-    }
-    do{
-        printf("Start Hour (0-23): ");
-        scanf("%d", &newClass->startHour);
-    }while ((newClass->startHour) < 0 || (newClass->startHour) > 23);
+        do{
+            printf("Start Hour (0-23): ");
+            scanf("%d", &newClass->startHour);
+        }while ((newClass->startHour) < 0 || (newClass->startHour) > 23);
+
+        newClass->key = newClass->startHour * 100 + day;
+
+        if (searchClassByKey(root, newClass->key) != NULL) {
+            printf("A class already exists at that day and hour. Please try again.\n");
+        } else {
+            break;
+        }
+
+    }while(1);
 
     printf("Instructor: ");
     scanf(" %[^\n]", newClass->instructor);
 
-    newClass->key = newClass->startHour * 100 + day;
-
     root = insertClass(root, newClass);
+
+    FILE *fp = fopen("classes.txt", "a");
+    fprintf(fp, "%s#%s#%d#%s\n", newClass->name, newClass->day, newClass->startHour, newClass->instructor);
+    fclose(fp);
+
     free(newClass);
     printf("Class Succesfully Addedd!\n");
     return root;
@@ -685,6 +702,10 @@ void insertFacility(Facility fac[], int *size) {
         i = (i - 1) / 2;
     }
 
+    FILE *fp = fopen("facilities.txt", "a");
+    fprintf(fp, "%s#%s#%d#%s\n", fac[i].name, fac[i].description, fac[i].popularity);
+    fclose(fp);
+
     printf("Facility inserted successfully!\n");
 }
 
@@ -756,6 +777,13 @@ void deleteFacility(Facility fac[], int *size) {
         swap(&fac[i], &fac[(i - 1) / 2]);
         i = (i - 1) / 2;
     }
+
+    FILE *file = fopen("facilities.txt", "w");
+    for (int i = 0; i < size; i++){
+        fprintf(file, "%s#%s#%d#%s\n", fac[i].name, fac[i].description, fac[i].popularity);
+    }
+    fclose(file);
+
 
     printf("Facility deleted successfully!\n");
 }
@@ -1160,6 +1188,10 @@ void addPlans(Plan plans[], int *data) {
     printf("Duration (in weeks): ");
     scanf(" %d", &plans[i].duration);
 
+    FILE *fp = fopen("workoutPlans.txt", "a");
+    fprintf(fp, "%s#%d#%d#%s\n", plans[i].name, plans[i].popularity, plans[i].duration, plans[i].difficulty);
+    fclose(fp);
+
     printf("Succesfully added a New Workout Plan!\n\n");
 }
 
@@ -1181,6 +1213,12 @@ void deletePlan(Plan plans[], int *data) {
     }
 
     (*data)--;
+
+    FILE *fp = fopen("workoutPlans.txt", "w");
+    for (int i = 0; i < *data; i++){
+        fprintf(fp, "%s#%d#%d#%s\n", plans[i].name, plans[i].popularity, plans[i].duration, plans[i].difficulty);
+    }
+    fclose(fp);
 
     printf("Plan deleted successfully!\n\n");
 }
